@@ -2,6 +2,7 @@
 
 (require racket/class racket/draw racket/math racket/match
          racket/contract
+         (only-in racket/flonum flvector)
          "private/flomap.rkt"
          "private/deep-flomap.rkt"
          "private/utils.rkt"
@@ -13,6 +14,7 @@
 
 (provide (activate-contract-out
           plt-logo plt-flomap
+          turnstile-logo turnstile-flomap
           planet-logo planet-flomap
           racket-logo racket-flomap
           stepper-logo stepper-flomap
@@ -96,6 +98,8 @@
 
 (define logo-red-color (make-object color% 255 36 32))
 (define logo-blue-color (make-object color% 32 36 255))
+(define turnstile-red-color (make-object color% 160 72 72))
+(define turnstile-blue-color (make-object color% 72 72 160))
 (define lambda-outline-color (make-object color% 16 16 64))
 (define (lambda-pen color width) (make-object pen% color width 'solid 'projecting 'miter))
 
@@ -150,6 +154,66 @@
                 fm
                 (lambda-flomap lambda-outline-color 10)
                 lambda-fm)]
+          [fm  (flomap-cc-superimpose
+                (draw-icon-flomap
+                 (λ (dc)
+                   (send dc set-pen lambda-outline-color 1/2 'solid)
+                   (send dc set-brush "white" 'solid)
+                   (send dc draw-ellipse -0.25 -0.25 31.5 31.5)
+                   (send dc set-pen "lightblue" 1/2 'solid)
+                   (send dc set-brush "white" 'transparent)
+                   (send dc draw-ellipse 0.5 0.5 30 30))
+                 32 32 (/ height 32))
+                fm)])
+     fm)))
+
+(defproc (turnstile-flomap [#:height height (and/c rational? (>=/c 0)) 256]) flomap?
+  (make-cached-flomap
+   [height]
+   (define scale (/ height 256))
+   (define bulge-fm
+     (draw-icon-flomap
+      (λ (dc)
+        (send dc set-pen turnstile-red-color 2 'transparent)
+        (send dc set-brush turnstile-red-color 'solid)
+        (send dc draw-path (make-arc-path 8 8 239 239 blue-θ-end blue-θ-start))
+        (send dc set-pen turnstile-blue-color 2 'transparent)
+        (send dc set-brush turnstile-blue-color 'solid)
+        (send dc draw-path (make-arc-path 8 8 239 239 blue-θ-start blue-θ-end))
+        (send dc set-pen (lambda-pen lambda-outline-color 10))
+        (send dc set-brush lambda-outline-color 'solid)
+        (draw-lambda dc 8 8 240 240))
+      256 256 scale))
+
+   (define (lambda-flomap color pen-width)
+     (draw-icon-flomap
+      (λ (dc)
+        (send dc set-scale scale scale)
+        (send dc set-pen (lambda-pen color pen-width))
+        (send dc set-brush color 'solid)
+        (draw-lambda dc 8 8 240 240))
+      256 256 scale))
+
+   (let* ([bulge-dfm  (flomap->deep-flomap bulge-fm)]
+          [bulge-dfm  (deep-flomap-bulge-spheroid bulge-dfm (* 112 scale))]
+          [lambda-dfm  (flomap->deep-flomap (lambda-flomap "azure" 4))]
+          [lambda-dfm  (deep-flomap-bulge-spheroid lambda-dfm (* 112 scale))]
+          [lambda-dfm  (deep-flomap-smooth-z lambda-dfm (* 3 scale))]
+          [lambda-fm  (deep-flomap-render-icon lambda-dfm metal-material)]
+          [fm  (deep-flomap-render-icon bulge-dfm glass-logo-material)]
+          [fm  (flomap-rc-superimpose
+                fm
+                (flomap-lc-superimpose
+                 (flomap (flvector) 4 400 0) ; spacer
+                (bitmap->flomap
+                 (text-icon "⊢"
+                            (make-font
+                             #:weight 'bold
+                             #:family 'modern
+                             ;#:underlined? #t
+                             )
+                            #:color #;light-metal-icon-color "white" #:height 400
+                            #:material metal-icon-material))))]
           [fm  (flomap-cc-superimpose
                 (draw-icon-flomap
                  (λ (dc)
@@ -412,6 +476,7 @@
   ([#:height height (and/c rational? (>=/c 0)) 256])
   (height)
   [plt-logo plt-flomap]
+  [turnstile-logo turnstile-flomap]
   [racket-logo racket-flomap])
 
 (define-icon-wrappers
